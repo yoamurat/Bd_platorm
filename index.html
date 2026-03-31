@@ -353,6 +353,7 @@ function loadAll(){
         updatedAt:b.updated_at
       };
     });
+    rebuildSidMap();
     setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
     renderSidebar(); renderMain();
   }).catch(function(e){
@@ -394,7 +395,7 @@ function addCompany(){
     chain = chain.then(function(){
       if(STATE.companies.indexOf(name)>=0) return;
       return dbPost('bd_companies',{name:name}).then(function(){
-        STATE.companies.push(name);
+        STATE.companies.push(name); rebuildSidMap();
       }).catch(function(e){
         if(e.message.indexOf('duplicate')<0) toast('Could not add '+name);
       });
@@ -493,22 +494,22 @@ function renderCard(name){
       +(chips?'<div class="chips">'+chips+'</div>':'')
       +'</div>'
       +'<div class="brief-actions">'
-      +'<button class="btn btn-o" onclick="openAddModal('+n+')">Edit</button>'
-      +'<button class="btn btn-p"'+capAttr+' onclick="generateBrief('+n+',\''+sid+'\')">Generate with AI</button>'
-      +'<button class="btn btn-o" onclick="showPrompt('+n+',\''+sid+'\')">Copy prompt</button>'
-      +'<button class="btn btn-o" onclick="copyText('+JSON.stringify(b.outreach||'')+')">Copy outreach</button>'
+      +'<button class="btn btn-o" data-action="edit" data-sid="'+sid+'">Edit</button>'
+      +'<button class="btn btn-p" data-action="generate" data-sid="'+sid+'"'+capAttr+'>Generate with AI</button>'
+      +'<button class="btn btn-o" data-action="prompt" data-sid="'+sid+'">Copy prompt</button>'
+      +'<button class="btn btn-o" data-action="outreach" data-sid="'+sid+'">Copy outreach</button>'
       +'</div>';
   } else {
     body = '<div style="padding:12px 0;color:var(--ink-4);font-size:13px">No brief yet. Generate with AI or add manually.</div>'
       +'<div class="brief-actions">'
-      +'<button class="btn btn-p"'+capAttr+' onclick="generateBrief('+n+',\''+sid+'\')">Generate with AI</button>'
-      +'<button class="btn btn-o" onclick="openAddModal('+n+')">Add manually</button>'
-      +'<button class="btn btn-o" onclick="showPrompt('+n+',\''+sid+'\')">Copy prompt</button>'
+      +'<button class="btn btn-p" data-action="generate" data-sid="'+sid+'"'+capAttr+'>Generate with AI</button>'
+      +'<button class="btn btn-o" data-action="edit" data-sid="'+sid+'">Add manually</button>'
+      +'<button class="btn btn-o" data-action="prompt" data-sid="'+sid+'">Copy prompt</button>'
       +'</div>';
   }
 
-  return '<div class="brief-card" id="card-'+sid+'">'
-    +'<div class="brief-head" onclick="toggleCard(this)">'
+  return '<div class="brief-card" id="card-'+sid+'" data-sid="'+sid+'">'
+    +'<div class="brief-head">'
     +'<div class="bh-left">'
     +'<div class="avatar" style="background:'+color+'">'+initials(name)+'</div>'
     +'<div><div class="bh-name">'+name+'</div>'
@@ -709,12 +710,13 @@ function saveBrief(){
 
   var chain = Promise.resolve();
   if(STATE.companies.indexOf(company)<0){
-    chain = dbPost('bd_companies',{name:company}).then(function(){ STATE.companies.push(company); });
+    chain = dbPost('bd_companies',{name:company}).then(function(){ STATE.companies.push(company); rebuildSidMap(); });
   }
   chain.then(function(){
     return dbPost('bd_briefs', briefData, true);
   }).then(function(){
     STATE.briefs[company] = {sector:briefData.sector,signals:signals,financials:financials,outreach:briefData.outreach,services:services,updatedAt:briefData.updated_at};
+    rebuildSidMap();
     setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
     document.getElementById('addModal').style.display='none';
     renderSidebar(); renderMain();
@@ -750,6 +752,43 @@ function doImport(){
     toast(added+' companies imported');
   });
 }
+
+// ── DELEGATED CLICK HANDLER ───────────────────────────────────────────────────
+// Maps safeId -> real company name so data-action buttons can look up the name
+var SID_MAP = {};
+
+function rebuildSidMap(){
+  SID_MAP = {};
+  STATE.companies.forEach(function(name){ SID_MAP[safeId(name)] = name; });
+}
+
+document.addEventListener('click', function(e){
+  // Brief head toggle
+  var head = e.target.closest('.brief-head');
+  if(head){ toggleCard(head); return; }
+
+  // Sidebar remove button
+  var rm = e.target.closest('.co-rm');
+  if(rm){ return; } // handled by its own onclick
+
+  // Data-action buttons
+  var btn = e.target.closest('[data-action]');
+  if(!btn) return;
+
+  var action = btn.getAttribute('data-action');
+  var sid = btn.getAttribute('data-sid');
+  var name = SID_MAP[sid];
+  if(!name) return;
+
+  if(action === 'generate') { generateBrief(name, sid); }
+  else if(action === 'edit') { openAddModal(name); }
+  else if(action === 'prompt') { showPrompt(name, sid); }
+  else if(action === 'outreach') {
+    var b = STATE.briefs[name];
+    if(b && b.outreach) copyText(b.outreach);
+    else toast('No outreach angle yet');
+  }
+});
 
 loadAll();
 </script>
