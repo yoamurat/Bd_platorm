@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BD Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --ink:#0e1117;--ink-2:#2a2f3a;--ink-3:#5a6072;--ink-4:#9aa0b0;
+  --paper:#f7f6f2;--paper-2:#efeee9;--paper-3:#e5e3db;
+  --accent:#c94f2c;--accent-2:#e8724e;--accent-pale:#fdf0ec;
+  --teal:#1a7f6e;--teal-pale:#e8f5f2;
+  --amber:#b87c1a;--amber-pale:#fdf5e6;
+  --border:rgba(14,17,23,0.1);--border-strong:rgba(14,17,23,0.2);
+  --radius:6px;--radius-lg:10px;
+  --font-d:'DM Serif Display',serif;--font-b:'Manrope',sans-serif;--font-m:'DM Mono',monospace;
+  --shadow:0 1px 3px rgba(14,17,23,0.08),0 4px 16px rgba(14,17,23,0.04);
+  --shadow-lg:0 2px 8px rgba(14,17,23,0.1),0 12px 40px rgba(14,17,23,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-b);background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6;}
+.layout{display:grid;grid-template-columns:264px 1fr;min-height:100vh;}
+.sidebar{background:var(--ink);color:var(--paper);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sb-brand{padding:28px 24px 20px;border-bottom:1px solid rgba(247,246,242,0.08);}
+.sb-title{font-family:var(--font-d);font-size:20px;color:var(--paper);line-height:1.2;margin-bottom:4px;}
+.sb-sub{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,246,242,0.35);}
+.sync-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;color:rgba(247,246,242,0.3);}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:rgba(247,246,242,0.2);flex-shrink:0;transition:background .3s;}
+.sync-dot.ok{background:#4caf7a;}.sync-dot.busy{background:var(--amber);animation:blink 1s infinite;}.sync-dot.err{background:#e05050;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sb-body{padding:20px 24px 16px;flex:1;}
+.sb-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,246,242,0.35);margin-bottom:10px;}
+.add-row{display:flex;gap:6px;margin-bottom:12px;}
+.add-row input{flex:1;background:rgba(247,246,242,0.07);border:1px solid rgba(247,246,242,0.12);border-radius:var(--radius);color:var(--paper);font-family:var(--font-b);font-size:12px;padding:7px 10px;outline:none;transition:border-color .15s;}
+.add-row input::placeholder{color:rgba(247,246,242,0.3);}
+.add-row input:focus{border-color:var(--accent-2);}
+.btn-plus{background:var(--accent);border:none;border-radius:var(--radius);color:white;cursor:pointer;font-size:18px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0;}
+.btn-plus:hover{background:var(--accent-2);}
+.co-list{display:flex;flex-direction:column;gap:3px;}
+.co-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:var(--radius);cursor:pointer;transition:background .12s;gap:8px;}
+.co-item:hover{background:rgba(247,246,242,0.07);}
+.co-left{display:flex;align-items:center;gap:8px;min-width:0;}
+.co-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.d-fresh{background:#4caf7a;}.d-stale{background:var(--amber);}.d-none{background:rgba(247,246,242,0.2);}
+.co-name{font-size:12px;font-weight:500;color:rgba(247,246,242,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.co-date{font-family:var(--font-m);font-size:9px;color:rgba(247,246,242,0.3);flex-shrink:0;}
+.co-rm{background:none;border:none;color:rgba(247,246,242,0.2);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;transition:color .12s;flex-shrink:0;}
+.co-rm:hover{color:var(--accent-2);}
+.sb-foot{padding:16px 24px;border-top:1px solid rgba(247,246,242,0.08);}
+.btn-bulk{width:100%;background:var(--accent);border:none;border-radius:var(--radius);color:white;cursor:pointer;font-family:var(--font-b);font-size:12px;font-weight:600;padding:10px 16px;transition:background .15s;}
+.btn-bulk:hover{background:var(--accent-2);}
+.legend{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:rgba(247,246,242,0.3);}
+.leg-dot{width:6px;height:6px;border-radius:50%;}
+.main{display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--paper);border-bottom:1px solid var(--border);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.tb-left{display:flex;flex-direction:column;}
+.tb-title{font-family:var(--font-d);font-size:22px;color:var(--ink);font-style:italic;}
+.tb-meta{font-family:var(--font-m);font-size:10px;color:var(--ink-4);margin-top:1px;}
+.tb-right{display:flex;gap:8px;}
+.btn{border-radius:var(--radius);cursor:pointer;font-family:var(--font-b);font-size:12px;font-weight:600;padding:8px 16px;border:none;transition:all .15s;}
+.btn-p{background:var(--accent);color:white;}.btn-p:hover{background:var(--accent-2);}
+.btn-o{background:transparent;border:1px solid var(--border-strong);color:var(--ink-2);}.btn-o:hover{background:var(--paper-2);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.content{flex:1;padding:32px 36px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.stat-card{background:white;border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);}
+.stat-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);margin-bottom:6px;}
+.stat-value{font-family:var(--font-d);font-size:28px;color:var(--ink);line-height:1;}
+.stat-sub{font-size:11px;color:var(--ink-4);margin-top:4px;}
+.usage-wrap{background:white;border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.u-lbl{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap;}
+.u-track{flex:1;height:5px;background:var(--paper-3);border-radius:99px;overflow:hidden;}
+.u-fill{height:100%;border-radius:99px;background:var(--accent);transition:width .4s;}
+.u-fill.warn{background:var(--amber);}.u-fill.crit{background:#e05050;}
+.u-count{font-family:var(--font-m);font-size:11px;color:var(--ink-3);white-space:nowrap;}
+.briefs-grid{display:flex;flex-direction:column;gap:16px;}
+.brief-card{background:white;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;animation:fadeUp .3s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.brief-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid transparent;cursor:pointer;user-select:none;transition:background .15s;}
+.brief-head:hover{background:var(--paper);}
+.brief-card.open .brief-head{border-bottom-color:var(--border);}
+.bh-left{display:flex;align-items:center;gap:14px;}
+.avatar{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:15px;color:white;flex-shrink:0;}
+.bh-name{font-size:15px;font-weight:600;color:var(--ink);}
+.bh-meta{font-family:var(--font-m);font-size:10px;color:var(--ink-4);margin-top:2px;}
+.bh-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.badge{font-size:10px;font-weight:600;letter-spacing:.05em;padding:3px 10px;border-radius:20px;text-transform:uppercase;white-space:nowrap;}
+.b-fresh{background:#e8f7ef;color:#1a7f4e;}.b-stale{background:var(--amber-pale);color:var(--amber);}
+.b-none{background:var(--paper-2);color:var(--ink-3);}
+.b-sector{background:var(--paper-2);color:var(--ink-3);font-weight:500;text-transform:none;letter-spacing:0;}
+.chevron{color:var(--ink-4);font-size:12px;transition:transform .2s;}
+.brief-card.open .chevron{transform:rotate(180deg);}
+.brief-body{display:none;padding:20px 22px;}
+.brief-card.open .brief-body{display:block;}
+.brief-sections{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+.bsec{padding:16px 18px;}
+.bsec+.bsec{border-left:1px solid var(--border);}
+.sec-title{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);margin-bottom:10px;}
+.sig-item{display:flex;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.sig-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.sig-tag{font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;margin-top:2px;}
+.t-project{background:#e8f0fd;color:#2a5bd1;}.t-tender{background:var(--teal-pale);color:var(--teal);}
+.t-regulatory{background:var(--amber-pale);color:var(--amber);}.t-leadership{background:#f3e8fd;color:#7c3aed;}
+.t-market{background:var(--paper-2);color:var(--ink-3);}
+.sig-text{font-size:12px;color:var(--ink-2);line-height:1.5;}
+.sig-date{font-family:var(--font-m);font-size:10px;color:var(--ink-4);margin-top:2px;}
+.fin-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;gap:12px;}
+.fin-row:last-child{border-bottom:none;}
+.fin-k{color:var(--ink-3);flex-shrink:0;}.fin-v{font-weight:600;color:var(--ink);text-align:right;}
+.fin-v.hi{color:var(--teal);}
+.outreach-box{background:var(--ink);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;}
+.or-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(247,246,242,0.4);margin-bottom:8px;}
+.or-text{font-size:13px;color:rgba(247,246,242,0.9);line-height:1.6;}
+.or-contacts{margin-top:10px;padding-top:10px;border-top:1px solid rgba(247,246,242,0.1);font-size:11px;color:rgba(247,246,242,0.5);}
+.or-contacts span{color:rgba(247,246,242,0.75);font-weight:500;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.chip{font-size:10px;font-weight:500;padding:4px 10px;border-radius:20px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-pale);}
+.brief-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.gen-box{background:var(--paper-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;}
+.spinner{width:16px;height:16px;border:2px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gen-text{font-size:13px;color:var(--ink-3);}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;text-align:center;gap:12px;}
+.empty-icon{font-size:40px;opacity:.3;}
+.empty-title{font-family:var(--font-d);font-size:22px;color:var(--ink-3);font-style:italic;}
+.empty-sub{font-size:13px;color:var(--ink-4);max-width:320px;line-height:1.5;}
+.cfg-banner{background:var(--amber-pale);border:1px solid var(--amber);border-radius:var(--radius-lg);padding:18px 22px;margin-bottom:24px;}
+.cfg-banner h3{font-size:13px;font-weight:600;color:var(--amber);margin-bottom:6px;}
+.cfg-banner p{font-size:12px;color:var(--ink-2);line-height:1.6;}
+.cfg-banner code{font-family:var(--font-m);font-size:11px;background:white;border:1px solid var(--border);padding:2px 6px;border-radius:4px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(14,17,23,0.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;backdrop-filter:blur(4px);}
+.modal{background:white;border-radius:var(--radius-lg);width:100%;max-width:540px;box-shadow:var(--shadow-lg);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;}
+.modal-head{padding:18px 24px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-title{font-family:var(--font-d);font-size:18px;margin-bottom:3px;}
+.modal-sub{font-size:12px;color:var(--ink-3);}
+.modal-body{padding:18px 24px;overflow-y:auto;}
+.mf{margin-bottom:13px;}
+.ml{font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:5px;display:block;}
+.mhint{font-size:10px;color:var(--ink-4);margin-top:3px;}
+.mi{width:100%;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:var(--font-b);font-size:13px;padding:8px 12px;color:var(--ink);outline:none;transition:border-color .15s;resize:vertical;}
+.mi:focus{border-color:var(--accent);}.mi:disabled{background:var(--paper-2);color:var(--ink-3);}
+.modal-foot{padding:12px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.pp{background:var(--paper-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-top:14px;}
+.pp-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;}
+.pp-text{font-family:var(--font-m);font-size:11px;color:var(--ink-2);line-height:1.7;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;}
+.pp-copy{margin-top:8px;background:white;border:1px solid var(--border-strong);border-radius:var(--radius);font-family:var(--font-b);font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer;color:var(--ink-2);transition:all .15s;}
+.pp-copy:hover{background:var(--paper-2);}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);font-size:12px;font-weight:500;padding:10px 18px;border-radius:var(--radius);z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}.sidebar{position:static;height:auto;}
+  .brief-sections{grid-template-columns:1fr;}.bsec+.bsec{border-left:none;border-top:1px solid var(--border);}
+  .stats-row{grid-template-columns:repeat(2,1fr);}.content{padding:20px;}.topbar{padding:12px 20px;}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-title">BD Intelligence</div>
+    <div class="sb-sub">Engineering &amp; Technical Advisory</div>
+    <div class="sync-row"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">Connecting...</span></div>
+  </div>
+  <div class="sb-body">
+    <div class="sb-label">Target companies</div>
+    <div class="add-row">
+      <input type="text" id="sbInput" placeholder="Add company..."/>
+      <button class="btn-plus" onclick="addCompany()" title="Add">+</button>
+    </div>
+    <div class="co-list" id="coList"></div>
+  </div>
+  <div class="sb-foot">
+    <button class="btn-bulk" onclick="showBulkPrompt()">Generate research prompt</button>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot d-fresh"></div>Fresh (&lt;30d)</div>
+      <div class="leg-item"><div class="leg-dot d-stale"></div>Stale (&gt;30d)</div>
+      <div class="leg-item"><div class="leg-dot d-none"></div>No brief</div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-title" id="tbTitle">Dashboard</div>
+      <div class="tb-meta" id="tbMeta">Engineering &amp; Technical Consultancy</div>
+    </div>
+    <div class="tb-right">
+      <button class="btn btn-o" onclick="showImportModal()">Import CSV</button>
+      <button class="btn btn-p" onclick="openAddModal(null)">+ Add brief</button>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</main>
+</div>
+
+<div class="modal-overlay" id="addModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="modalTitle">Add brief</div><div class="modal-sub">Enter details manually or paste research output</div></div>
+    <div class="modal-body">
+      <div class="mf"><label class="ml">Company name *</label><input class="mi" id="m-co" placeholder="e.g. TotalEnergies"/></div>
+      <div class="mf"><label class="ml">Sector</label><input class="mi" id="m-sector" placeholder="e.g. Gas infrastructure &amp; midstream"/></div>
+      <div class="mf">
+        <label class="ml">BD signals - one per line</label>
+        <textarea class="mi" id="m-signals" rows="4" placeholder="[project] FEED study awarded for LNG terminal - Oct 2025&#10;[regulatory] EU PCI status granted for H2 pipeline - Nov 2025"></textarea>
+        <div class="mhint">Prefix with [project], [tender], [regulatory], [leadership], or [market]</div>
+      </div>
+      <div class="mf">
+        <label class="ml">Financials - one per line (Key: Value)</label>
+        <textarea class="mi" id="m-financials" rows="3" placeholder="Revenue: $5bn&#10;Annual capex: $800M&#10;Ownership: Listed - Euronext Paris"></textarea>
+      </div>
+      <div class="mf"><label class="ml">Outreach angle</label><textarea class="mi" id="m-outreach" rows="3" placeholder="Why now and which services we lead with..."></textarea></div>
+      <div class="mf"><label class="ml">Relevant services (comma-separated)</label><input class="mi" id="m-services" placeholder="e.g. Pre-FEED studies, CCUS advisory, Asset integrity"/></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+      <button class="btn btn-p" id="saveBriefBtn" onclick="saveBrief()">Save brief</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Import companies</div><div class="modal-sub">One per row, or comma/semicolon separated</div></div>
+    <div class="modal-body">
+      <div class="mf"><label class="ml">Company names</label><textarea class="mi" id="csvInput" rows="8" placeholder="Perenco&#10;TotalEnergies&#10;Terega&#10;..."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="document.getElementById('importModal').style.display='none'">Cancel</button>
+      <button class="btn btn-p" onclick="doImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL = 'YOUR_SUPABASE_URL';
+var SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+var MONTHLY_CAP  = 100;
+
+var SERVICES = [
+  'Conceptual & feasibility studies','Pre-FEED & FEED studies','Project management & PMO',
+  'Asset integrity & inspection','Decarbonisation & energy transition advisory',
+  'CCUS & CO2 transport','Hydrogen & new energies','Technical safety & risk',
+  'Flow assurance','Due diligence (technical)','Environmental services',
+  'Downstream & upstream engineering','Oil & gas consultancy'
+];
+
+var STATE = {companies:[], briefs:{}, usage:0};
+var editingCo = null;
+
+function isConfigured(){ return SUPABASE_URL.indexOf('YOUR_') === -1; }
+
+function makeHeaders(){
+  return {
+    'Content-Type':'application/json',
+    'apikey':SUPABASE_KEY,
+    'Authorization':'Bearer '+SUPABASE_KEY,
+    'Prefer':'return=representation'
+  };
+}
+
+function dbGet(path){
+  return fetch(SUPABASE_URL+'/rest/v1/'+path, {headers:makeHeaders()}).then(function(r){
+    if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+    return r.json();
+  });
+}
+
+function dbPost(path, body, upsert){
+  var h = makeHeaders();
+  if(upsert) h['Prefer'] = 'resolution=merge-duplicates,return=representation';
+  return fetch(SUPABASE_URL+'/rest/v1/'+path, {method:'POST',headers:h,body:JSON.stringify(body)}).then(function(r){
+    if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+    return r.json();
+  });
+}
+
+function dbDelete(path){
+  return fetch(SUPABASE_URL+'/rest/v1/'+path, {method:'DELETE',headers:makeHeaders()}).then(function(r){
+    if(!r.ok) return r.text().then(function(t){ throw new Error(t); });
+  });
+}
+
+function callEdgeFn(company, prompt){
+  return fetch(SUPABASE_URL+'/functions/v1/generate-brief', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+    body:JSON.stringify({company:company, prompt:prompt})
+  }).then(function(r){
+    return r.json().then(function(data){
+      if(!r.ok) throw new Error(data.error || 'HTTP '+r.status);
+      return data.brief;
+    });
+  });
+}
+
+function setSyncStatus(s, label){
+  var dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot' + (s==='ok'?' ok':s==='busy'?' busy':s==='err'?' err':'');
+  document.getElementById('syncLabel').textContent = label;
+}
+
+function initials(n){ return n.trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase(); }
+
+function avatarColor(n){
+  var c=['#1a3a5c','#2d5016','#5c1a1a','#1a4a4a','#3d1a5c','#5c3d1a'];
+  var h=0;
+  for(var i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))%c.length;
+  return c[h];
+}
+
+function daysSince(iso){ if(!iso) return Infinity; return Math.floor((Date.now()-new Date(iso))/86400000); }
+
+function fmtDate(iso){
+  if(!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+
+function safeId(n){ return n.replace(/[^a-z0-9]/gi,'_'); }
+
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); },2600);
+}
+
+function copyText(t){ navigator.clipboard.writeText(t).then(function(){ toast('Copied'); }); }
+
+function loadAll(){
+  if(!isConfigured()){ setSyncStatus('err','Not configured'); renderMain(); renderSidebar(); return; }
+  setSyncStatus('busy','Loading...');
+  var now = new Date();
+  var monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  Promise.all([
+    dbGet('bd_companies?select=*&order=created_at.asc'),
+    dbGet('bd_briefs?select=*'),
+    dbGet('bd_usage?select=id&generated_at=gte.'+monthStart)
+  ]).then(function(results){
+    var cos=results[0], briefs=results[1], usage=results[2];
+    STATE.companies = cos.map(function(c){ return c.name; });
+    STATE.usage = usage.length;
+    STATE.briefs = {};
+    briefs.forEach(function(b){
+      STATE.briefs[b.company_name] = {
+        sector:b.sector, signals:b.signals||[], financials:b.financials||[],
+        outreach:b.outreach, services:b.services||[], decisionMakers:b.decision_makers||'',
+        updatedAt:b.updated_at
+      };
+    });
+    rebuildSidMap();
+    setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+    renderSidebar(); renderMain();
+  }).catch(function(e){
+    setSyncStatus('err','Sync error'); console.error(e);
+    renderSidebar(); renderMain();
+  });
+}
+
+function renderSidebar(){
+  var list = document.getElementById('coList');
+  if(!STATE.companies.length){
+    list.innerHTML = '<div style="font-size:11px;color:rgba(247,246,242,0.3);padding:4px 2px">No companies yet</div>';
+    return;
+  }
+  list.innerHTML = STATE.companies.map(function(name){
+    var b = STATE.briefs[name];
+    var days = daysSince(b&&b.updatedAt);
+    var dc = !b ? 'd-none' : days<30 ? 'd-fresh' : 'd-stale';
+    var ds = b ? fmtDate(b.updatedAt) : 'No brief';
+    var n = JSON.stringify(name);
+    return '<div class="co-item">'
+      +'<div class="co-left"><div class="co-dot '+dc+'"></div><div class="co-name">'+name+'</div></div>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      +'<div class="co-date">'+ds+'</div>'
+      +'<button class="co-rm" onclick="event.stopPropagation();removeCo('+n+')" title="Remove">x</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function addCompany(){
+  var input = document.getElementById('sbInput');
+  var names = input.value.split(/[,;\n]+/).map(function(s){return s.trim();}).filter(Boolean);
+  if(!names.length) return;
+  input.value = '';
+  if(!isConfigured()){ toast('Configure Supabase credentials first'); return; }
+  setSyncStatus('busy','Saving...');
+  var chain = Promise.resolve();
+  names.forEach(function(name){
+    chain = chain.then(function(){
+      if(STATE.companies.indexOf(name)>=0) return;
+      return dbPost('bd_companies',{name:name}).then(function(){
+        STATE.companies.push(name); rebuildSidMap();
+      }).catch(function(e){
+        if(e.message.indexOf('duplicate')<0) toast('Could not add '+name);
+      });
+    });
+  });
+  chain.then(function(){
+    setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+    renderSidebar(); renderMain();
+  });
+}
+
+document.getElementById('sbInput').addEventListener('keydown', function(e){ if(e.key==='Enter') addCompany(); });
+
+function removeCo(name){
+  if(!confirm('Remove '+name+' and its brief?')) return;
+  setSyncStatus('busy','Removing...');
+  dbDelete('bd_companies?name=eq.'+encodeURIComponent(name)).then(function(){
+    STATE.companies = STATE.companies.filter(function(c){return c!==name;});
+    delete STATE.briefs[name];
+    setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+    renderSidebar(); renderMain();
+  }).catch(function(){ setSyncStatus('err','Error'); toast('Could not remove'); });
+}
+
+function renderMain(){
+  var content = document.getElementById('content');
+  var total = STATE.companies.length;
+  var withBrief = STATE.companies.filter(function(c){return STATE.briefs[c];}).length;
+  var fresh = STATE.companies.filter(function(c){return daysSince(STATE.briefs[c]&&STATE.briefs[c].updatedAt)<30;}).length;
+  var stale = STATE.companies.filter(function(c){var d=daysSince(STATE.briefs[c]&&STATE.briefs[c].updatedAt);return d>=30&&d<Infinity;}).length;
+  document.getElementById('tbMeta').textContent = total+' tracked - '+withBrief+' briefed - '+fresh+' fresh';
+
+  var cfg = !isConfigured()
+    ? '<div class="cfg-banner"><h3>Supabase not configured</h3><p>Open the HTML file and replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your real credentials from Supabase &rarr; Settings &rarr; API.</p></div>'
+    : '';
+
+  if(!total){
+    content.innerHTML = cfg+'<div class="empty-state"><div class="empty-icon">&#9672;</div><div class="empty-title">No target companies yet</div><div class="empty-sub">Add company names in the sidebar to start tracking.</div></div>';
+    return;
+  }
+
+  var upct = Math.min(100, Math.round(STATE.usage/MONTHLY_CAP*100));
+  var uc = upct>=100?'crit':upct>=75?'warn':'';
+
+  var html = cfg
+    +'<div class="stats-row">'
+    +'<div class="stat-card"><div class="stat-label">Companies tracked</div><div class="stat-value">'+total+'</div><div class="stat-sub">Active targets</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Briefed</div><div class="stat-value">'+withBrief+'</div><div class="stat-sub">'+(total-withBrief)+' pending</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Fresh briefs</div><div class="stat-value">'+fresh+'</div><div class="stat-sub">Updated &lt;30 days</div></div>'
+    +'<div class="stat-card"><div class="stat-label">Need update</div><div class="stat-value">'+stale+'</div><div class="stat-sub">Brief &gt;30 days old</div></div>'
+    +'</div>'
+    +'<div class="usage-wrap">'
+    +'<div class="u-lbl">Monthly AI generations</div>'
+    +'<div class="u-track"><div class="u-fill '+uc+'" style="width:'+upct+'%"></div></div>'
+    +'<div class="u-count">'+STATE.usage+' / '+MONTHLY_CAP+' &mdash; resets 1st of month</div>'
+    +'</div>'
+    +'<div class="briefs-grid">'+STATE.companies.map(renderCard).join('')+'</div>';
+  content.innerHTML = html;
+}
+
+function renderCard(name){
+  var b = STATE.briefs[name];
+  var days = daysSince(b&&b.updatedAt);
+  var bc = !b?'b-none':days<30?'b-fresh':'b-stale';
+  var bt = !b?'No brief':days<30?'Fresh':'Update needed';
+  var color = avatarColor(name);
+  var sid = safeId(name);
+  var n = JSON.stringify(name);
+  var capHit = STATE.usage >= MONTHLY_CAP;
+  var capAttr = capHit ? ' disabled title="Monthly cap reached"' : '';
+
+  var body;
+  if(b){
+    var tagMap = {project:'t-project',tender:'t-tender',regulatory:'t-regulatory',leadership:'t-leadership'};
+    var signals = (b.signals||[]).map(function(s){
+      return '<div class="sig-item">'
+        +'<span class="sig-tag '+(tagMap[s.type]||'t-market')+'">'+s.type+'</span>'
+        +'<div><div class="sig-text">'+s.text+'</div>'+(s.date?'<div class="sig-date">'+s.date+'</div>':'')+'</div>'
+        +'</div>';
+    }).join('') || '<div style="font-size:12px;color:var(--ink-4)">No signals yet</div>';
+
+    var fins = (b.financials||[]).map(function(f){
+      return '<div class="fin-row"><span class="fin-k">'+f.key+'</span><span class="fin-v'+(f.highlight?' hi':'')+'">'+f.val+'</span></div>';
+    }).join('') || '<div style="font-size:12px;color:var(--ink-4)">No data</div>';
+
+    var chips = (b.services||[]).map(function(s){ return '<span class="chip">'+s+'</span>'; }).join('');
+
+    body = '<div class="brief-sections">'
+      +'<div class="bsec"><div class="sec-title">BD signals &amp; news</div>'+signals+'</div>'
+      +'<div class="bsec"><div class="sec-title">Financials</div>'+fins+'</div>'
+      +'</div>'
+      +'<div class="outreach-box">'
+      +'<div class="or-label">Outreach angle &mdash; Engineering &amp; Technical Advisory</div>'
+      +'<div class="or-text">'+(b.outreach||'No outreach angle defined.')+'</div>'
+      +(b.decisionMakers?'<div class="or-contacts">Key contacts: <span>'+b.decisionMakers+'</span></div>':'')
+      +(chips?'<div class="chips">'+chips+'</div>':'')
+      +'</div>'
+      +'<div class="brief-actions">'
+      +'<button class="btn btn-o" data-action="edit" data-sid="'+sid+'">Edit</button>'
+      +'<button class="btn btn-p" data-action="generate" data-sid="'+sid+'"'+capAttr+'>Generate with AI</button>'
+      +'<button class="btn btn-o" data-action="prompt" data-sid="'+sid+'">Copy prompt</button>'
+      +'<button class="btn btn-o" data-action="outreach" data-sid="'+sid+'">Copy outreach</button>'
+      +'</div>';
+  } else {
+    body = '<div style="padding:12px 0;color:var(--ink-4);font-size:13px">No brief yet. Generate with AI or add manually.</div>'
+      +'<div class="brief-actions">'
+      +'<button class="btn btn-p" data-action="generate" data-sid="'+sid+'"'+capAttr+'>Generate with AI</button>'
+      +'<button class="btn btn-o" data-action="edit" data-sid="'+sid+'">Add manually</button>'
+      +'<button class="btn btn-o" data-action="prompt" data-sid="'+sid+'">Copy prompt</button>'
+      +'</div>';
+  }
+
+  return '<div class="brief-card" id="card-'+sid+'" data-sid="'+sid+'">'
+    +'<div class="brief-head">'
+    +'<div class="bh-left">'
+    +'<div class="avatar" style="background:'+color+'">'+initials(name)+'</div>'
+    +'<div><div class="bh-name">'+name+'</div>'
+    +'<div class="bh-meta">'+(b?'Updated '+fmtDate(b.updatedAt)+' - '+(b.sector||'Energy'):'No brief yet')+'</div>'
+    +'</div></div>'
+    +'<div class="bh-right">'
+    +(b&&b.sector?'<span class="badge b-sector">'+b.sector+'</span>':'')
+    +'<span class="badge '+bc+'">'+bt+'</span>'
+    +'<span class="chevron">&#9660;</span>'
+    +'</div></div>'
+    +'<div class="brief-body">'+body+'<div id="pp-'+sid+'"></div></div>'
+    +'</div>';
+}
+
+function toggleCard(head){ head.parentElement.classList.toggle('open'); }
+
+function generateBrief(name, sid){
+  if(STATE.usage >= MONTHLY_CAP){ toast('Monthly cap of '+MONTHLY_CAP+' reached. Resets on the 1st.'); return; }
+  if(!isConfigured()){ toast('Configure Supabase credentials first'); return; }
+
+  var card = document.getElementById('card-'+sid);
+  if(card && !card.classList.contains('open')) card.classList.add('open');
+  var bodyEl = card && card.querySelector('.brief-body');
+  if(bodyEl){
+    bodyEl.innerHTML = '<div class="gen-box"><div class="spinner"></div>'
+      +'<div class="gen-text">Researching <strong>'+name+'</strong> &mdash; 10-20 seconds...</div></div>';
+  }
+
+  var prompt = buildPromptJSON(name);
+  callEdgeFn(name, prompt).then(function(raw){
+    var brief = parseResponse(raw);
+    var saveChain = Promise.resolve();
+    if(STATE.companies.indexOf(name)<0){
+      saveChain = dbPost('bd_companies',{name:name}).then(function(){ STATE.companies.push(name); });
+    }
+    return saveChain.then(function(){
+      return dbPost('bd_briefs',{
+        company_name:name, sector:brief.sector, signals:brief.signals,
+        financials:brief.financials, outreach:brief.outreach, services:brief.services,
+        decision_makers:brief.decisionMakers, updated_at:new Date().toISOString()
+      }, true);
+    }).then(function(){
+      return dbPost('bd_usage',{company_name:name});
+    }).then(function(){
+      STATE.briefs[name] = Object.assign({},brief,{updatedAt:new Date().toISOString()});
+      STATE.usage += 1;
+      setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+      renderSidebar(); renderMain();
+      var nc = document.getElementById('card-'+sid);
+      if(nc) nc.classList.add('open');
+      toast('Brief generated for '+name);
+    });
+  }).catch(function(e){
+    toast('Error: '+e.message);
+    renderSidebar(); renderMain();
+    var nc = document.getElementById('card-'+sid);
+    if(nc) nc.classList.add('open');
+    console.error(e);
+  });
+}
+
+function buildPromptJSON(company){
+  return 'You are a BD analyst for an engineering and technical consultancy. Research "'+company+'" and return ONLY valid JSON, no markdown, no preamble.\n\n'
+    +'Our services: '+SERVICES.join(', ')+'\n\n'
+    +'Return exactly:\n'
+    +'{"sector":"Oil & gas upstream|Gas infrastructure & midstream|Renewables & hydrogen|Power & utilities|Other",'
+    +'"signals":[{"type":"project|tender|regulatory|leadership|market","text":"specific max 30 words","date":"Mon YYYY"}],'
+    +'"financials":[{"key":"label","val":"value","highlight":false}],'
+    +'"outreach":"3-4 sentences: exact project creating opening + sharpest service fit + why NOW",'
+    +'"services":["matching service from our list"],'
+    +'"decisionMakers":"VP Engineering / Technical Director"}\n\n'
+    +'Rules: 2-3 signals on active capex/FEED/EPC/decarbonisation/H2/CCUS/asset integrity. '
+    +'5 financials: ownership, revenue/production, capex, listing, key signal. Pick 2-4 services. Be specific.';
+}
+
+function parseResponse(raw){
+  try{
+    var m = raw.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('No JSON');
+    var d = JSON.parse(m[0]);
+    return {
+      sector:d.sector||'',
+      signals:(d.signals||[]).map(function(s){return {type:s.type||'market',text:s.text||'',date:s.date||''};}),
+      financials:(d.financials||[]).map(function(f){return {key:f.key||'',val:f.val||'',highlight:!!f.highlight};}),
+      outreach:d.outreach||'',
+      services:d.services||[],
+      decisionMakers:d.decisionMakers||''
+    };
+  }catch(e){
+    return {sector:'',signals:[{type:'market',text:'See outreach for full details',date:''}],financials:[],outreach:raw.slice(0,800),services:[],decisionMakers:''};
+  }
+}
+
+function buildPromptText(company){
+  var svcList = SERVICES.map(function(s){ return '  - '+s; }).join('\n');
+  return 'You are a BD analyst for an engineering and technical consultancy. Research "'+company+'".\n\n'
+    +'Our services:\n'+svcList+'\n\n'
+    +'Cover:\n'
+    +'1. BD SIGNALS (2-3): [type] Description - Date\n'
+    +'   (type = project/tender/regulatory/leadership/market)\n'
+    +'   Focus: active capex, FEED/EPC awards, decarbonisation, H2/CCUS, asset integrity, regulatory drivers.\n\n'
+    +'2. FINANCIALS (5 rows): Key: Value\n\n'
+    +'3. OUTREACH ANGLE (3-4 sentences): Exact project opening + sharpest service fit + why NOW.\n\n'
+    +'4. KEY DECISION-MAKERS: 1-2 roles controlling engineering consultancy spend.\n\n'
+    +'Be specific and evidence-based.';
+}
+
+function showPrompt(name, sid){
+  var card = document.getElementById('card-'+sid);
+  if(card && !card.classList.contains('open')) card.classList.add('open');
+  var ppDiv = document.getElementById('pp-'+sid);
+  if(!ppDiv) return;
+  var prompt = buildPromptText(name);
+  var esc = prompt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  ppDiv.innerHTML = '<div class="pp">'
+    +'<div class="pp-title">Research prompt - paste into Claude</div>'
+    +'<div class="pp-text">'+esc+'</div>'
+    +'<button class="pp-copy" onclick="copyText('+JSON.stringify(prompt)+')">Copy prompt</button>'
+    +'</div>';
+}
+
+function showBulkPrompt(){
+  if(!STATE.companies.length){ toast('No companies added yet'); return; }
+  var coList = STATE.companies.map(function(c,i){ return (i+1)+'. '+c; }).join('\n');
+  var svcList = SERVICES.map(function(s){ return '  - '+s; }).join('\n');
+  var prompt = 'You are a BD analyst for an engineering and technical consultancy. Research each company below.\n\n'
+    +'Companies:\n'+coList+'\n\n'
+    +'Our services:\n'+svcList+'\n\n'
+    +'For each company:\n'
+    +'1. BD SIGNALS (2-3): [type] Description - Date\n'
+    +'2. FINANCIALS (5 rows): Key: Value\n'
+    +'3. OUTREACH ANGLE (3-4 sentences): Exact project opening + sharpest service fit + why NOW\n'
+    +'4. KEY DECISION-MAKERS: 1-2 roles\n\n'
+    +'Label each company clearly. Be specific and evidence-based.';
+
+  var content = document.getElementById('content');
+  var existing = content.querySelector('.pp');
+  if(existing){ existing.remove(); return; }
+  var el = document.createElement('div');
+  el.className = 'pp';
+  el.style.marginBottom = '20px';
+  var esc = prompt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  el.innerHTML = '<div class="pp-title">Bulk research prompt - '+STATE.companies.length+' companies</div>'
+    +'<div class="pp-text">'+esc+'</div>'
+    +'<button class="pp-copy" onclick="copyText('+JSON.stringify(prompt)+')">Copy prompt</button>';
+  content.insertBefore(el, content.firstChild);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function openAddModal(name){
+  editingCo = name;
+  var b = name ? STATE.briefs[name] : null;
+  document.getElementById('modalTitle').textContent = name ? 'Edit brief - '+name : 'Add brief';
+  document.getElementById('m-co').value = name||'';
+  document.getElementById('m-co').disabled = !!name;
+  document.getElementById('m-sector').value = b&&b.sector||'';
+  document.getElementById('m-signals').value = (b&&b.signals||[]).map(function(s){ return '['+s.type+'] '+s.text+(s.date?' - '+s.date:''); }).join('\n');
+  document.getElementById('m-financials').value = (b&&b.financials||[]).map(function(r){ return r.key+': '+r.val; }).join('\n');
+  document.getElementById('m-outreach').value = b&&b.outreach||'';
+  document.getElementById('m-services').value = (b&&b.services||[]).join(', ');
+  document.getElementById('addModal').style.display = 'flex';
+}
+
+function saveBrief(){
+  var company = editingCo || document.getElementById('m-co').value.trim();
+  if(!company){ toast('Company name required'); return; }
+  if(!isConfigured()){ toast('Configure Supabase credentials first'); return; }
+
+  var rawSig = document.getElementById('m-signals').value.trim();
+  var signals = rawSig ? rawSig.split('\n').filter(Boolean).map(function(line){
+    var m = line.match(/^\[(\w+)\]\s*/);
+    var type = m ? m[1].toLowerCase() : 'market';
+    var rest = line.replace(/^\[\w+\]\s*/,'');
+    var parts = rest.split(' - ');
+    return {type:type, text:parts[0].trim(), date:parts[1]?parts[1].trim():''};
+  }) : [];
+
+  var rawFin = document.getElementById('m-financials').value.trim();
+  var financials = rawFin ? rawFin.split('\n').filter(Boolean).map(function(line){
+    var idx = line.indexOf(':');
+    return {key:line.slice(0,idx).trim(), val:line.slice(idx+1).trim(), highlight:false};
+  }) : [];
+
+  var services = document.getElementById('m-services').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+
+  var briefData = {
+    company_name:company,
+    sector:document.getElementById('m-sector').value.trim(),
+    signals:signals, financials:financials,
+    outreach:document.getElementById('m-outreach').value.trim(),
+    services:services,
+    updated_at:new Date().toISOString()
+  };
+
+  var btn = document.getElementById('saveBriefBtn');
+  btn.disabled=true; btn.textContent='Saving...';
+  setSyncStatus('busy','Saving...');
+
+  var chain = Promise.resolve();
+  if(STATE.companies.indexOf(company)<0){
+    chain = dbPost('bd_companies',{name:company}).then(function(){ STATE.companies.push(company); rebuildSidMap(); });
+  }
+  chain.then(function(){
+    return dbPost('bd_briefs', briefData, true);
+  }).then(function(){
+    STATE.briefs[company] = {sector:briefData.sector,signals:signals,financials:financials,outreach:briefData.outreach,services:services,updatedAt:briefData.updated_at};
+    rebuildSidMap();
+    setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+    document.getElementById('addModal').style.display='none';
+    renderSidebar(); renderMain();
+    toast('Brief saved');
+  }).catch(function(e){
+    setSyncStatus('err','Error'); toast('Could not save'); console.error(e);
+  }).then(function(){
+    btn.disabled=false; btn.textContent='Save brief';
+  });
+}
+
+function showImportModal(){ document.getElementById('importModal').style.display='flex'; }
+
+function doImport(){
+  var raw = document.getElementById('csvInput').value;
+  var names = raw.split(/[\n,;]+/).map(function(s){return s.trim();}).filter(Boolean);
+  if(!names.length) return;
+  if(!isConfigured()){ toast('Configure Supabase credentials first'); return; }
+  setSyncStatus('busy','Importing...');
+  var added=0;
+  var chain = Promise.resolve();
+  names.forEach(function(name){
+    chain = chain.then(function(){
+      if(STATE.companies.indexOf(name)>=0) return;
+      return dbPost('bd_companies',{name:name}).then(function(){ STATE.companies.push(name); added++; }).catch(function(e){ if(e.message.indexOf('duplicate')<0) console.warn(e); });
+    });
+  });
+  chain.then(function(){
+    setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
+    document.getElementById('importModal').style.display='none';
+    document.getElementById('csvInput').value='';
+    renderSidebar(); renderMain();
+    toast(added+' companies imported');
+  });
+}
+
+// ── DELEGATED CLICK HANDLER ───────────────────────────────────────────────────
+// Maps safeId -> real company name so data-action buttons can look up the name
+var SID_MAP = {};
+
+function rebuildSidMap(){
+  SID_MAP = {};
+  STATE.companies.forEach(function(name){ SID_MAP[safeId(name)] = name; });
+}
+
+document.addEventListener('click', function(e){
+  // Brief head toggle
+  var head = e.target.closest('.brief-head');
+  if(head){ toggleCard(head); return; }
+
+  // Sidebar remove button
+  var rm = e.target.closest('.co-rm');
+  if(rm){ return; } // handled by its own onclick
+
+  // Data-action buttons
+  var btn = e.target.closest('[data-action]');
+  if(!btn) return;
+
+  var action = btn.getAttribute('data-action');
+  var sid = btn.getAttribute('data-sid');
+  var name = SID_MAP[sid];
+  if(!name) return;
+
+  if(action === 'generate') { generateBrief(name, sid); }
+  else if(action === 'edit') { openAddModal(name); }
+  else if(action === 'prompt') { showPrompt(name, sid); }
+  else if(action === 'outreach') {
+    var b = STATE.briefs[name];
+    if(b && b.outreach) copyText(b.outreach);
+    else toast('No outreach angle yet');
+  }
+});
+
+loadAll();
+</script>
+</body>
+</html>
