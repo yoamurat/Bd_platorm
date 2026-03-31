@@ -239,8 +239,8 @@ body{font-family:var(--font-b);background:var(--paper);color:var(--ink);min-heig
 <div class="toast" id="toast"></div>
 
 <script>
-var SUPABASE_URL = 'https://vbmkmcjdcycljwexmvxw.supabase.co';
-var SUPABASE_KEY = 'sb_publishable_leUN2XqwvXfcCGyVgCpHdw_JvNnpHoE';
+var SUPABASE_URL = 'YOUR_SUPABASE_URL';
+var SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 var MONTHLY_CAP  = 100;
 
 var SERVICES = [
@@ -378,7 +378,7 @@ function renderSidebar(){
       +'<div class="co-left"><div class="co-dot '+dc+'"></div><div class="co-name">'+name+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:4px">'
       +'<div class="co-date">'+ds+'</div>'
-      +'<button class="co-rm" onclick="event.stopPropagation();removeCo('+n+')" title="Remove">x</button>'
+      +'<button class="co-rm" data-action="remove" data-name="'+name.replace(/"/g,'&quot;')+'" title="Remove">x</button>'
       +'</div></div>';
   }).join('');
 }
@@ -539,23 +539,39 @@ function generateBrief(name, sid){
   }
 
   var prompt = buildPromptJSON(name);
+  console.log('[BD] Calling edge function for:', name);
+
   callEdgeFn(name, prompt).then(function(raw){
+    console.log('[BD] Response received, length:', raw && raw.length);
+    console.log('[BD] Preview:', raw && raw.slice(0,300));
+
     var brief = parseResponse(raw);
+    console.log('[BD] Parsed OK, outreach length:', brief.outreach && brief.outreach.length);
+
     var saveChain = Promise.resolve();
     if(STATE.companies.indexOf(name)<0){
-      saveChain = dbPost('bd_companies',{name:name}).then(function(){ STATE.companies.push(name); });
+      saveChain = dbPost('bd_companies',{name:name}).then(function(){
+        STATE.companies.push(name); rebuildSidMap();
+      });
     }
     return saveChain.then(function(){
+      console.log('[BD] Upserting brief...');
       return dbPost('bd_briefs',{
-        company_name:name, sector:brief.sector, signals:brief.signals,
-        financials:brief.financials, outreach:brief.outreach, services:brief.services,
-        decision_makers:brief.decisionMakers, updated_at:new Date().toISOString()
+        company_name:name,
+        sector:brief.sector,
+        signals:brief.signals,
+        financials:brief.financials,
+        outreach:brief.outreach,
+        services:brief.services,
+        updated_at:new Date().toISOString()
       }, true);
     }).then(function(){
+      console.log('[BD] Brief saved, logging usage...');
       return dbPost('bd_usage',{company_name:name});
     }).then(function(){
       STATE.briefs[name] = Object.assign({},brief,{updatedAt:new Date().toISOString()});
       STATE.usage += 1;
+      rebuildSidMap();
       setSyncStatus('ok','Synced - '+new Date().toLocaleTimeString());
       renderSidebar(); renderMain();
       var nc = document.getElementById('card-'+sid);
@@ -563,11 +579,11 @@ function generateBrief(name, sid){
       toast('Brief generated for '+name);
     });
   }).catch(function(e){
+    console.error('[BD] Error:', e);
     toast('Error: '+e.message);
     renderSidebar(); renderMain();
     var nc = document.getElementById('card-'+sid);
     if(nc) nc.classList.add('open');
-    console.error(e);
   });
 }
 
@@ -769,7 +785,12 @@ document.addEventListener('click', function(e){
 
   // Sidebar remove button
   var rm = e.target.closest('.co-rm');
-  if(rm){ return; } // handled by its own onclick
+  if(rm){
+    e.stopPropagation();
+    var rmName = rm.getAttribute('data-name');
+    if(rmName) removeCo(rmName);
+    return;
+  }
 
   // Data-action buttons
   var btn = e.target.closest('[data-action]');
