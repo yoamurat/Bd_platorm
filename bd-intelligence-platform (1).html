@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BD Intelligence — Engineering & Technical Advisory</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --ink: #0e1117; --ink-2: #2a2f3a; --ink-3: #5a6072; --ink-4: #9aa0b0;
+    --paper: #f7f6f2; --paper-2: #efeee9; --paper-3: #e5e3db;
+    --accent: #c94f2c; --accent-2: #e8724e; --accent-pale: #fdf0ec;
+    --teal: #1a7f6e; --teal-pale: #e8f5f2;
+    --amber: #b87c1a; --amber-pale: #fdf5e6;
+    --border: rgba(14,17,23,0.1); --border-strong: rgba(14,17,23,0.2);
+    --radius: 6px; --radius-lg: 10px;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'Manrope', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --shadow: 0 1px 3px rgba(14,17,23,0.08), 0 4px 16px rgba(14,17,23,0.04);
+    --shadow-lg: 0 2px 8px rgba(14,17,23,0.1), 0 12px 40px rgba(14,17,23,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-body); background: var(--paper); color: var(--ink); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+  .layout { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--ink); color: var(--paper); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .sidebar-brand { padding: 28px 24px 20px; border-bottom: 1px solid rgba(247,246,242,0.08); }
+  .brand-title { font-family: var(--font-display); font-size: 20px; color: var(--paper); line-height: 1.2; margin-bottom: 4px; }
+  .brand-sub { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(247,246,242,0.35); }
+  .sync-status { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 10px; color: rgba(247,246,242,0.3); }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(247,246,242,0.2); flex-shrink: 0; transition: background 0.3s; }
+  .sync-dot.synced { background: #4caf7a; }
+  .sync-dot.syncing { background: var(--amber); animation: blink 1s infinite; }
+  .sync-dot.error { background: #e05050; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .sidebar-section { padding: 20px 24px 16px; flex: 1; }
+  .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(247,246,242,0.35); margin-bottom: 10px; }
+  .add-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .add-row input { flex: 1; background: rgba(247,246,242,0.07); border: 1px solid rgba(247,246,242,0.12); border-radius: var(--radius); color: var(--paper); font-family: var(--font-body); font-size: 12px; padding: 7px 10px; outline: none; transition: border-color 0.15s; }
+  .add-row input::placeholder { color: rgba(247,246,242,0.3); }
+  .add-row input:focus { border-color: var(--accent-2); }
+  .btn-icon { background: var(--accent); border: none; border-radius: var(--radius); color: white; cursor: pointer; font-size: 16px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+  .btn-icon:hover { background: var(--accent-2); }
+
+  .company-list { display: flex; flex-direction: column; gap: 3px; }
+  .company-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; transition: background 0.12s; gap: 8px; }
+  .company-item:hover { background: rgba(247,246,242,0.07); }
+  .company-item.active { background: rgba(201,79,44,0.25); }
+  .company-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .company-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-fresh { background: #4caf7a; } .dot-stale { background: var(--amber); } .dot-none { background: rgba(247,246,242,0.2); }
+  .company-name { font-size: 12px; font-weight: 500; color: rgba(247,246,242,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .company-date { font-family: var(--font-mono); font-size: 9px; color: rgba(247,246,242,0.3); flex-shrink: 0; }
+  .company-remove { background: none; border: none; color: rgba(247,246,242,0.2); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; transition: color 0.12s; flex-shrink: 0; }
+  .company-remove:hover { color: var(--accent-2); }
+
+  .sidebar-footer { padding: 16px 24px; border-top: 1px solid rgba(247,246,242,0.08); }
+  .btn-run-all { width: 100%; background: var(--accent); border: none; border-radius: var(--radius); color: white; cursor: pointer; font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.03em; padding: 10px 16px; transition: background 0.15s; text-align: center; }
+  .btn-run-all:hover { background: var(--accent-2); }
+  .legend { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: rgba(247,246,242,0.3); }
+  .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* MAIN */
+  .main { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { background: var(--paper); border-bottom: 1px solid var(--border); padding: 16px 36px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-left { display: flex; flex-direction: column; }
+  .topbar-title { font-family: var(--font-display); font-size: 22px; color: var(--ink); font-style: italic; }
+  .topbar-meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-top: 1px; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .btn { border-radius: var(--radius); cursor: pointer; font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 8px 16px; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: white; } .btn-primary:hover { background: var(--accent-2); }
+  .btn-outline { background: transparent; border: 1px solid var(--border-strong); color: var(--ink-2); } .btn-outline:hover { background: var(--paper-2); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .content { flex: 1; padding: 32px 36px; }
+
+  /* EMPTY / CONFIG */
+  .config-banner { background: var(--amber-pale); border: 1px solid var(--amber); border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 24px; }
+  .config-banner h3 { font-size: 14px; font-weight: 600; color: var(--amber); margin-bottom: 8px; }
+  .config-banner p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 12px; }
+  .config-banner code { font-family: var(--font-mono); font-size: 12px; background: white; border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; }
+  .config-fields { display: flex; flex-direction: column; gap: 8px; }
+  .config-input { width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius); font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; color: var(--ink); outline: none; }
+  .config-input:focus { border-color: var(--accent); }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; text-align: center; gap: 12px; }
+  .empty-icon { font-size: 40px; opacity: 0.3; }
+  .empty-title { font-family: var(--font-display); font-size: 22px; color: var(--ink-3); font-style: italic; }
+  .empty-sub { font-size: 13px; color: var(--ink-4); max-width: 320px; line-height: 1.5; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; box-shadow: var(--shadow); }
+  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
+  .stat-value { font-family: var(--font-display); font-size: 28px; color: var(--ink); line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--ink-4); margin-top: 4px; }
+
+  .briefs-grid { display: flex; flex-direction: column; gap: 20px; }
+
+  .brief-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; animation: fadeUp 0.3s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .brief-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid transparent; cursor: pointer; user-select: none; transition: background 0.15s; }
+  .brief-head:hover { background: var(--paper); }
+  .brief-card.open .brief-head { border-bottom-color: var(--border); }
+  .brief-head-left { display: flex; align-items: center; gap: 14px; }
+  .company-avatar { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 15px; color: white; flex-shrink: 0; }
+  .brief-company { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .brief-timestamp { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-top: 2px; }
+  .brief-head-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .badge { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; white-space: nowrap; }
+  .badge-fresh { background: #e8f7ef; color: #1a7f4e; }
+  .badge-stale { background: var(--amber-pale); color: var(--amber); }
+  .badge-pending { background: var(--paper-2); color: var(--ink-3); }
+  .badge-sector { background: var(--paper-2); color: var(--ink-3); font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .chevron { color: var(--ink-4); font-size: 12px; transition: transform 0.2s; }
+  .brief-card.open .chevron { transform: rotate(180deg); }
+
+  .brief-body { display: none; padding: 20px 22px; }
+  .brief-card.open .brief-body { display: block; }
+
+  .brief-sections { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+  .brief-section { padding: 16px 18px; }
+  .brief-section + .brief-section { border-left: 1px solid var(--border); }
+  .section-title { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 10px; }
+
+  .signal-item { display: flex; gap: 10px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .signal-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .signal-tag { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; margin-top: 2px; height: fit-content; }
+  .tag-project { background: #e8f0fd; color: #2a5bd1; }
+  .tag-tender { background: var(--teal-pale); color: var(--teal); }
+  .tag-regulatory { background: var(--amber-pale); color: var(--amber); }
+  .tag-leadership { background: #f3e8fd; color: #7c3aed; }
+  .tag-market { background: var(--paper-2); color: var(--ink-3); }
+  .signal-text { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .signal-date { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-top: 2px; }
+
+  .finance-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; gap: 12px; }
+  .finance-row:last-child { border-bottom: none; }
+  .finance-key { color: var(--ink-3); flex-shrink: 0; }
+  .finance-val { font-weight: 600; color: var(--ink); text-align: right; }
+  .finance-val.pos { color: var(--teal); }
+
+  .outreach-box { background: var(--ink); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+  .outreach-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(247,246,242,0.4); margin-bottom: 8px; }
+  .outreach-text { font-size: 13px; color: rgba(247,246,242,0.9); line-height: 1.6; }
+  .services-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .service-chip { font-size: 10px; font-weight: 500; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-pale); }
+
+  .brief-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .generating-box { background: var(--paper-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+  .generating-spinner { width: 16px; height: 16px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .generating-text { font-size: 13px; color: var(--ink-3); }
+
+  .usage-bar-wrap { margin-bottom: 28px; background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px; }
+  .usage-bar-label { font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .usage-bar-track { flex: 1; height: 6px; background: var(--paper-3); border-radius: 99px; overflow: hidden; }
+  .usage-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.4s ease; }
+  .usage-bar-fill.warn { background: var(--amber); }
+  .usage-bar-fill.full { background: #e05050; }
+  .usage-bar-count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+
+  .skeleton { background: linear-gradient(90deg, var(--paper-2) 25%, var(--paper-3) 50%, var(--paper-2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(14,17,23,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
+  .modal { background: white; border-radius: var(--radius-lg); width: 100%; max-width: 540px; box-shadow: var(--shadow-lg); overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
+  .modal-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .modal-title { font-family: var(--font-display); font-size: 18px; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--ink-3); }
+  .modal-body { padding: 20px 24px; overflow-y: auto; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-label { font-size: 11px; font-weight: 600; color: var(--ink-3); margin-bottom: 6px; display: block; }
+  .modal-hint { font-size: 10px; color: var(--ink-4); margin-top: 4px; }
+  .modal-input { width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius); font-family: var(--font-body); font-size: 13px; padding: 9px 12px; color: var(--ink); outline: none; transition: border-color 0.15s; resize: vertical; }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-input:disabled { background: var(--paper-2); color: var(--ink-3); }
+  .modal-foot { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
+
+  /* PROMPT */
+  .prompt-panel { background: var(--paper-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-top: 16px; }
+  .prompt-panel-title { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; }
+  .prompt-text { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .copy-btn { margin-top: 10px; background: white; border: 1px solid var(--border-strong); border-radius: var(--radius); font-family: var(--font-body); font-size: 11px; font-weight: 600; padding: 6px 12px; cursor: pointer; color: var(--ink-2); transition: all 0.15s; }
+  .copy-btn:hover { background: var(--paper-2); }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; padding: 10px 18px; border-radius: var(--radius); z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .brief-sections { grid-template-columns: 1fr; }
+    .brief-section + .brief-section { border-left: none; border-top: 1px solid var(--border); }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 20px; }
+    .topbar { padding: 12px 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-title">BD Intelligence</div>
+      <div class="brand-sub">Engineering & Technical Advisory</div>
+      <div class="sync-status">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncLabel">Connecting…</span>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Target companies</div>
+      <div class="add-row">
+        <input type="text" id="sidebarInput" placeholder="Add company…"/>
+        <button class="btn-icon" onclick="addFromSidebar()" title="Add">+</button>
+      </div>
+      <div class="company-list" id="sidebarList"></div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-run-all" onclick="showBulkPrompt()">Generate research prompt →</button>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot dot-fresh"></div>Fresh (&lt;30d)</div>
+        <div class="legend-item"><div class="legend-dot dot-stale"></div>Stale (&gt;30d)</div>
+        <div class="legend-item"><div class="legend-dot dot-none"></div>No brief</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-meta" id="topbarMeta">Engineering & Technical Consultancy · BD Intelligence Platform</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="showImportModal()">Import CSV</button>
+        <button class="btn btn-primary" onclick="showAddBriefModal()">+ Add brief</button>
+      </div>
+    </div>
+    <div class="content" id="mainContent"></div>
+  </main>
+</div>
+
+<!-- Modal: Add/Edit Brief -->
+<div class="modal-overlay" id="addModal" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Add company brief</div>
+      <div class="modal-sub">Enter details manually or paste research output</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field">
+        <label class="modal-label">Company name *</label>
+        <input class="modal-input" id="m-company" placeholder="e.g. TotalEnergies"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Sector</label>
+        <input class="modal-input" id="m-sector" placeholder="e.g. Gas infrastructure & midstream"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">BD signals — one per line</label>
+        <textarea class="modal-input" id="m-signals" rows="4" placeholder="[project] Awarded €2bn CCUS contract · Q3 2025&#10;[tender] FEED study RFQ issued for Gabon LNG · Oct 2025&#10;[regulatory] EU PCI status granted for H2 pipeline · Nov 2025"></textarea>
+        <div class="modal-hint">Prefix each line with [project], [tender], [regulatory], [leadership], or [market]</div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Financials — one per line (Key: Value)</label>
+        <textarea class="modal-input" id="m-financials" rows="3" placeholder="Revenue: $5bn&#10;Annual capex: $800M&#10;Ownership: Listed — Euronext Paris"></textarea>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Outreach angle</label>
+        <textarea class="modal-input" id="m-outreach" rows="3" placeholder="Why now and which services we lead with…"></textarea>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Relevant services (comma-separated)</label>
+        <input class="modal-input" id="m-services" placeholder="e.g. Pre-FEED & FEED studies, CCUS & CO₂ transport, Asset integrity"/>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="saveManualBrief()" id="saveBriefBtn">Save brief</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Import -->
+<div class="modal-overlay" id="importModal" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Import companies</div>
+      <div class="modal-sub">One company name per row, or comma/semicolon separated</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field">
+        <label class="modal-label">Paste company names</label>
+        <textarea class="modal-input" id="csvInput" rows="8" placeholder="Perenco&#10;TotalEnergies&#10;Teréga&#10;Woodside Energy&#10;…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="document.getElementById('importModal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="importCSV()">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ── Replace with your Supabase credentials ─────────────────────────
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // e.g. https://xyzabc.supabase.co
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';  // your anon/public key
+const EDGE_FN_URL  = 'YOUR_SUPABASE_URL/functions/v1/generate-brief'; // auto-derived below
+const MONTHLY_CAP  = 100; // must match the cap in your Edge Function
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FIRM = {
+  services: [
+    'Conceptual & feasibility studies','Pre-FEED & FEED studies','Project management & PMO',
+    'Asset integrity & inspection','Decarbonisation & energy transition advisory',
+    'CCUS & CO₂ transport','Hydrogen & new energies','Technical safety & risk',
+    'Flow assurance','Due diligence (technical)','Environmental services',
+    'Downstream & upstream engineering','Oil & gas consultancy'
+  ]
+};
+
+// ─── SUPABASE CLIENT (vanilla fetch, no SDK needed) ───────────────────────────
+const db = {
+  configured: () => SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY',
+
+  headers: () => ({
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Prefer': 'return=representation'
+  }),
+
+  async getCompanies() {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_companies?select=*&order=created_at.asc`, { headers: db.headers() });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async addCompany(name) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_companies`, {
+      method: 'POST', headers: db.headers(),
+      body: JSON.stringify({ name })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async removeCompany(name) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_companies?name=eq.${encodeURIComponent(name)}`, {
+      method: 'DELETE', headers: db.headers()
+    });
+    if (!r.ok) throw new Error(await r.text());
+  },
+
+  async getBriefs() {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_briefs?select=*`, { headers: db.headers() });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+
+  async getUsage() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_usage?select=id&generated_at=gte.${monthStart}`, { headers: db.headers() });
+    if (!r.ok) throw new Error(await r.text());
+    const rows = await r.json();
+    return rows.length;
+  },
+
+  async callEdgeFunction(company, prompt) {
+    const fnUrl = SUPABASE_URL.replace('YOUR_SUPABASE_URL', '') !== SUPABASE_URL
+      ? `${SUPABASE_URL}/functions/v1/generate-brief`
+      : EDGE_FN_URL;
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/generate-brief`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ company, prompt })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data.brief;
+  },
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_briefs`, {
+      method: 'POST',
+      headers: { ...db.headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(brief)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let STATE = { companies: [], briefs: {}, usage: 0 };
+let editingCompany = null;
+
+// ─── SYNC ─────────────────────────────────────────────────────────────────────
+function setSyncStatus(status, label) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  dot.className = 'sync-dot ' + (status === 'ok' ? 'synced' : status === 'syncing' ? 'syncing' : status === 'error' ? 'error' : '');
+  lbl.textContent = label;
+}
+
+async function loadFromDB() {
+  if (!db.configured()) {
+    setSyncStatus('error', 'Not configured');
+    renderMain();
+    renderSidebar();
+    return;
+  }
+  setSyncStatus('syncing', 'Loading…');
+  try {
+    const [companies, briefs, usage] = await Promise.all([db.getCompanies(), db.getBriefs(), db.getUsage()]);
+    STATE.companies = companies.map(c => c.name);
+    STATE.usage = usage;
+    STATE.briefs = {};
+    briefs.forEach(b => {
+      STATE.briefs[b.company_name] = {
+        sector: b.sector,
+        signals: b.signals || [],
+        financials: b.financials || [],
+        outreach: b.outreach,
+        services: b.services || [],
+        updatedAt: b.updated_at
+      };
+    });
+    setSyncStatus('ok', `Synced · ${new Date().toLocaleTimeString()}`);
+    renderSidebar();
+    renderMain();
+  } catch(e) {
+    setSyncStatus('error', 'Sync error');
+    toast('Could not connect to database');
+    console.error(e);
+    renderMain();
+    renderSidebar();
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function initials(name) { return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function avatarColor(name) {
+  const c = ['#1a3a5c','#2d5016','#5c1a1a','#1a4a4a','#3d1a5c','#5c3d1a'];
+  let h = 0; for (let ch of name) h = (h*31+ch.charCodeAt(0)) % c.length; return c[h];
+}
+function daysSince(iso) { if (!iso) return Infinity; return Math.floor((Date.now()-new Date(iso))/86400000); }
+function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function toast(msg, duration=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('sidebarList');
+  if (!STATE.companies.length) {
+    list.innerHTML = '<div style="font-size:11px;color:rgba(247,246,242,0.3);padding:4px 2px;">No companies yet</div>';
+    return;
+  }
+  list.innerHTML = STATE.companies.map(name => {
+    const brief = STATE.briefs[name];
+    const days = daysSince(brief?.updatedAt);
+    const dotClass = !brief ? 'dot-none' : days < 30 ? 'dot-fresh' : 'dot-stale';
+    const dateStr = brief ? formatDate(brief.updatedAt) : 'No brief';
+    return `<div class="company-item" onclick="selectCompany(${JSON.stringify(name)})">
+      <div class="company-item-left">
+        <div class="company-dot ${dotClass}"></div>
+        <div class="company-name">${name}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <div class="company-date">${dateStr}</div>
+        <button class="company-remove" onclick="event.stopPropagation();removeCompany(${JSON.stringify(name)})" title="Remove">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addFromSidebar() {
+  const input = document.getElementById('sidebarInput');
+  const names = input.value.split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean);
+  if (!names.length) return;
+  input.value = '';
+  if (!db.configured()) { toast('Configure Supabase credentials first'); return; }
+  setSyncStatus('syncing', 'Saving…');
+  for (const name of names) {
+    if (STATE.companies.includes(name)) continue;
+    try {
+      await db.addCompany(name);
+      STATE.companies.push(name);
+    } catch(e) {
+      if (!e.message.includes('duplicate')) toast(`Could not add ${name}`);
+    }
+  }
+  setSyncStatus('ok', `Synced · ${new Date().toLocaleTimeString()}`);
+  renderSidebar();
+  renderMain();
+}
+
+document.getElementById('sidebarInput').addEventListener('keydown', e => { if (e.key==='Enter') addFromSidebar(); });
+
+async function removeCompany(name) {
+  if (!confirm(`Remove ${name} and its brief?`)) return;
+  setSyncStatus('syncing', 'Removing…');
+  try {
+    await db.removeCompany(name);
+    STATE.companies = STATE.companies.filter(c=>c!==name);
+    delete STATE.briefs[name];
+    setSyncStatus('ok', `Synced · ${new Date().toLocaleTimeString()}`);
+    renderSidebar();
+    renderMain();
+  } catch(e) { setSyncStatus('error','Sync error'); toast('Could not remove company'); }
+}
+
+function selectCompany(name) { renderMain(name); }
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+function renderMain(focusCompany=null) {
+  const content = document.getElementById('mainContent');
+  document.getElementById('topbarTitle').textContent = focusCompany || 'Dashboard';
+  const total = STATE.companies.length;
+  const withBrief = STATE.companies.filter(c=>STATE.briefs[c]).length;
+  const fresh = STATE.companies.filter(c=>daysSince(STATE.briefs[c]?.updatedAt)<30).length;
+  const stale = STATE.companies.filter(c=>{const d=daysSince(STATE.briefs[c]?.updatedAt);return d>=30&&d<Infinity;}).length;
+  document.getElementById('topbarMeta').textContent = `${total} tracked · ${withBrief} briefed · ${fresh} fresh`;
+
+  const configBanner = !db.configured() ? `
+    <div class="config-banner">
+      <h3>⚙ Supabase not configured</h3>
+      <p>Open <code>bd-intelligence-platform.html</code> in a text editor and replace the two placeholders near the top of the &lt;script&gt; tag:</p>
+      <div class="config-fields">
+        <code>const SUPABASE_URL = 'YOUR_SUPABASE_URL';</code>
+        <code>const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';</code>
+      </div>
+      <p style="margin-top:10px;">Get these from your Supabase project → <strong>Settings → API</strong>. All team members will share the same live data once connected.</p>
+    </div>` : '';
+
+  if (!total) {
+    content.innerHTML = configBanner + `
+      <div class="empty-state">
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">No target companies yet</div>
+        <div class="empty-sub">Add company names in the sidebar to start tracking BD intelligence.</div>
+      </div>`;
+    return;
+  }
+
+  const targets = focusCompany ? [focusCompany] : STATE.companies;
+  const usagePct = Math.min(100, Math.round((STATE.usage / MONTHLY_CAP) * 100));
+  const usageClass = usagePct >= 100 ? 'full' : usagePct >= 75 ? 'warn' : '';
+  content.innerHTML = configBanner + `
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Companies tracked</div><div class="stat-value">${total}</div><div class="stat-sub">Active targets</div></div>
+      <div class="stat-card"><div class="stat-label">Briefed</div><div class="stat-value">${withBrief}</div><div class="stat-sub">${total-withBrief} pending</div></div>
+      <div class="stat-card"><div class="stat-label">Fresh briefs</div><div class="stat-value">${fresh}</div><div class="stat-sub">Updated &lt;30 days</div></div>
+      <div class="stat-card"><div class="stat-label">Need update</div><div class="stat-value">${stale}</div><div class="stat-sub">Brief &gt;30 days old</div></div>
+    </div>
+    <div class="usage-bar-wrap">
+      <div class="usage-bar-label">Monthly generations</div>
+      <div class="usage-bar-track"><div class="usage-bar-fill ${usageClass}" style="width:${usagePct}%"></div></div>
+      <div class="usage-bar-count">${STATE.usage} / ${MONTHLY_CAP} — resets 1st of month</div>
+    </div>
+    <div class="briefs-grid">${targets.map(renderBriefCard).join('')}</div>`;
+}
+
+function renderBriefCard(name) {
+  const brief = STATE.briefs[name];
+  const days = daysSince(brief?.updatedAt);
+  const badgeClass = !brief ? 'badge-pending' : days<30 ? 'badge-fresh' : 'badge-stale';
+  const badgeText = !brief ? 'No brief' : days<30 ? 'Fresh' : 'Update needed';
+  const color = avatarColor(name);
+  const safeId = name.replace(/[^a-z0-9]/gi,'_');
+
+  const bodyContent = brief ? `
+    <div class="brief-sections">
+      <div class="brief-section">
+        <div class="section-title">BD signals & news</div>
+        ${(brief.signals||[]).map(s=>{
+          const tagMap={project:'tag-project',tender:'tag-tender',regulatory:'tag-regulatory',leadership:'tag-leadership'};
+          return `<div class="signal-item">
+            <span class="signal-tag ${tagMap[s.type]||'tag-market'}">${s.type||'signal'}</span>
+            <div><div class="signal-text">${s.text}</div>${s.date?`<div class="signal-date">${s.date}</div>`:''}</div>
+          </div>`;
+        }).join('')||'<div style="font-size:12px;color:var(--ink-4)">No signals recorded</div>'}
+      </div>
+      <div class="brief-section">
+        <div class="section-title">Financials</div>
+        ${(brief.financials||[]).map(r=>`<div class="finance-row"><span class="finance-key">${r.key}</span><span class="finance-val ${r.highlight?'pos':''}">${r.val}</span></div>`).join('')||'<div style="font-size:12px;color:var(--ink-4)">No financial data</div>'}
+      </div>
+    </div>
+    <div class="outreach-box">
+      <div class="outreach-label">Outreach angle — Engineering & Technical Advisory</div>
+      <div class="outreach-text">${brief.outreach||'No outreach angle defined.'}</div>
+      ${brief.decisionMakers ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(247,246,242,0.1);font-size:11px;color:rgba(247,246,242,0.5);">Key contacts: <span style="color:rgba(247,246,242,0.75);font-weight:500;">${brief.decisionMakers}</span></div>` : ''}
+      ${(brief.services||[]).length?`<div class="services-grid">${brief.services.map(s=>`<span class="service-chip">${s}</span>`).join('')}</div>`:''}
+    </div>
+    <div class="brief-actions">
+      <button class="btn btn-outline" onclick="editBrief(${JSON.stringify(name)})">Edit</button>
+      <button class="btn btn-outline" onclick="showResearchPrompt(${JSON.stringify(name)}, '${safeId}')">Refresh prompt</button>
+      <button class="btn btn-primary" onclick="generateBrief(${JSON.stringify(name)}, '${safeId}')" ${STATE.usage >= MONTHLY_CAP ? 'disabled title="Monthly cap reached"' : ''}>Generate with AI</button>
+      <button class="btn btn-outline" onclick="copyText(${JSON.stringify(brief.outreach||'')})">Copy outreach</button>
+    </div>` :
+    `<div style="padding:16px 0;color:var(--ink-4);font-size:13px;">No brief yet. Generate one with AI or add details manually.</div>
+    <div class="brief-actions">
+      <button class="btn btn-primary" onclick="generateBrief(${JSON.stringify(name)}, '${safeId}')" ${STATE.usage >= MONTHLY_CAP ? 'disabled title="Monthly cap reached"' : ''}>Generate with AI</button>
+      <button class="btn btn-outline" onclick="showAddBriefModal(${JSON.stringify(name)})">Add manually</button>
+      <button class="btn btn-outline" onclick="showResearchPrompt(${JSON.stringify(name)}, '${safeId}')">Copy prompt</button>
+    </div>`;
+
+  return `
+    <div class="brief-card" id="card-${safeId}">
+      <div class="brief-head" onclick="toggleCard(this)">
+        <div class="brief-head-left">
+          <div class="company-avatar" style="background:${color}">${initials(name)}</div>
+          <div>
+            <div class="brief-company">${name}</div>
+            <div class="brief-timestamp">${brief?`Updated ${formatDate(brief.updatedAt)} · ${brief.sector||'Energy'}`:'No brief yet'}</div>
+          </div>
+        </div>
+        <div class="brief-head-right">
+          ${brief&&brief.sector?`<span class="badge badge-sector">${brief.sector}</span>`:''}
+          <span class="badge ${badgeClass}">${badgeText}</span>
+          <span class="chevron">▼</span>
+        </div>
+      </div>
+      <div class="brief-body">
+        ${bodyContent}
+        <div id="prompt-${safeId}"></div>
+      </div>
+    </div>`;
+}
+
+function toggleCard(head) { head.parentElement.classList.toggle('open'); }
+
+// ─── AI GENERATION ────────────────────────────────────────────────────────────
+async function generateBrief(name, safeId) {
+  if (STATE.usage >= MONTHLY_CAP) { toast(`Monthly cap of ${MONTHLY_CAP} reached. Resets on the 1st.`); return; }
+  if (!db.configured()) { toast('Configure Supabase credentials first'); return; }
+
+  // Open card and show spinner
+  const card = document.getElementById('card-' + safeId);
+  if (card && !card.classList.contains('open')) card.classList.add('open');
+  const bodyEl = card?.querySelector('.brief-body');
+  if (bodyEl) {
+    bodyEl.innerHTML = `<div class="generating-box">
+      <div class="generating-spinner"></div>
+      <div class="generating-text">Researching <strong>${name}</strong> — this takes 10–20 seconds…</div>
+    </div>`;
+  }
+
+  // Build structured prompt that returns JSON
+  const prompt = buildPromptJSON(name);
+
+  try {
+    const raw = await db.callEdgeFunction(name, prompt);
+    const brief = parseBriefResponse(raw, name);
+
+    // Add company if needed
+    if (!STATE.companies.includes(name)) {
+      await db.addCompany(name);
+      STATE.companies.push(name);
+    }
+
+    // Save to Supabase
+    await db.upsertBrief({
+      company_name: name,
+      sector: brief.sector,
+      signals: brief.signals,
+      financials: brief.financials,
+      outreach: brief.outreach,
+      services: brief.services,
+      updated_at: new Date().toISOString()
+    });
+
+    STATE.briefs[name] = { ...brief, updatedAt: new Date().toISOString() };
+    STATE.usage += 1;
+
+    setSyncStatus('ok', `Synced · ${new Date().toLocaleTimeString()}`);
+    renderSidebar();
+    renderMain();
+
+    // Re-open the card that was just generated
+    const newCard = document.getElementById('card-' + safeId);
+    if (newCard) newCard.classList.add('open');
+    toast(`Brief generated for ${name} ✓`);
+
+  } catch(e) {
+    toast(`Error: ${e.message}`);
+    // Restore card to previous state
+    renderMain();
+    const newCard = document.getElementById('card-' + safeId);
+    if (newCard) newCard.classList.add('open');
+    console.error(e);
+  }
+}
+
+function buildPromptJSON(company) {
+  return `You are a BD analyst for an engineering and technical consultancy. Research "${company}" and return ONLY a valid JSON object — no markdown, no preamble, no explanation.
+
+OUR SERVICES: ${FIRM.services.join(', ')}
+
+Return this exact JSON structure:
+{
+  "sector": "one of: Oil & gas upstream | Gas infrastructure & midstream | Renewables & hydrogen | Power & utilities | Other",
+  "signals": [
+    { "type": "project|tender|regulatory|leadership|market", "text": "specific description under 30 words", "date": "Mon YYYY" },
+    { "type": "...", "text": "...", "date": "..." }
+  ],
+  "financials": [
+    { "key": "label", "val": "value", "highlight": false },
+    { "key": "Annual capex", "val": "$Xbn", "highlight": true }
+  ],
+  "outreach": "3–4 sentences: name the exact project creating an opening, which of our services fits best and why, why contact them NOW",
+  "services": ["Service 1", "Service 2", "Service 3"],
+  "decisionMakers": "VP Engineering / Technical Director / Head of Projects"
+}
+
+Rules:
+- signals: 2–3 items focused on active capex projects, FEED/EPC awards, decarbonisation programmes, hydrogen/CCUS, asset integrity, regulatory drivers
+- financials: 5 rows covering ownership, revenue/production, capex, listing status, key financial signal
+- services: pick 2–4 from our list that are the sharpest fit
+- Be specific and evidence-based. No filler.`;
+}
+
+function parseBriefResponse(raw, company) {
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON found');
+    const data = JSON.parse(match[0]);
+    return {
+      sector: data.sector || '',
+      signals: (data.signals || []).map(s => ({ type: s.type || 'market', text: s.text || '', date: s.date || '' })),
+      financials: (data.financials || []).map(f => ({ key: f.key || '', val: f.val || '', highlight: !!f.highlight })),
+      outreach: data.outreach || '',
+      services: data.services || [],
+      decisionMakers: data.decisionMakers || ''
+    };
+  } catch(e) {
+    // Fallback: store raw text as outreach if JSON parse fails
+    return {
+      sector: '',
+      signals: [{ type: 'market', text: 'Brief generated — see outreach section for full details', date: new Date().toLocaleDateString('en-GB', {month:'short', year:'numeric'}) }],
+      financials: [],
+      outreach: raw.slice(0, 1000),
+      services: [],
+      decisionMakers: ''
+    };
+  }
+}
+
+// ─── PROMPT ───────────────────────────────────────────────────────────────────
+function buildPrompt(company) {
+  return `You are a BD analyst supporting an engineering and technical consultancy firm. Research "${company}" and produce a sharp, actionable intelligence brief for our BD team.
+
+OUR SERVICES:
+${FIRM.services.map(s=>`  • ${s}`).join('\n')}
+
+BRIEF FORMAT — answer each section precisely:
+
+1. BD SIGNALS (2–3 items)
+   Format each as: [type] Description · Date
+   Type = project / tender / regulatory / leadership / market
+   Focus on: active CAPEX projects we could support, FEED/EPC awards, new field developments, decarbonisation programmes, hydrogen/CCUS initiatives, asset integrity requirements, regulatory deadlines driving engineering demand.
+
+2. FINANCIALS (5–6 rows, Key: Value format)
+   Cover: ownership, revenue or production, annual capex, funding/listed status, key financial signal.
+
+3. OUTREACH ANGLE (3–4 sentences, specific)
+   Name the exact project or initiative creating an opening. State which of our services is the sharpest fit and why. Explain why NOW is the right moment versus waiting.
+
+4. KEY DECISION-MAKERS
+   1–2 job titles/functions controlling engineering consultancy spend at ${company}.
+
+Be specific, evidence-based, no filler.`;
+}
+
+function showResearchPrompt(name, safeId) {
+  const card = document.getElementById('card-'+safeId);
+  if (card && !card.classList.contains('open')) card.classList.add('open');
+  const promptDiv = document.getElementById('prompt-'+safeId);
+  if (!promptDiv) return;
+  const prompt = buildPrompt(name);
+  promptDiv.innerHTML = `<div class="prompt-panel">
+    <div class="prompt-panel-title">Research prompt — paste into Claude</div>
+    <div class="prompt-text">${prompt.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
+    <button class="copy-btn" onclick="copyText(${JSON.stringify(prompt)})">Copy prompt</button>
+  </div>`;
+}
+
+function showBulkPrompt() {
+  if (!STATE.companies.length) { toast('No companies added yet'); return; }
+  const list = STATE.companies.map((c,i)=>`${i+1}. ${c}`).join('\n');
+  const prompt = `You are a BD analyst for an engineering and technical consultancy. Research the following companies and produce a sharp brief for each.
+
+Companies:
+${list}
+
+OUR SERVICES:
+${FIRM.services.map(s=>`  • ${s}`).join('\n')}
+
+For each company:
+1. BD SIGNALS (2–3): [type] Description · Date  (type = project/tender/regulatory/leadership/market)
+2. FINANCIALS (5 rows): Key: Value
+3. OUTREACH ANGLE (3–4 sentences): Specific project opening + our sharpest service fit + why now
+4. KEY DECISION-MAKERS: 1–2 roles controlling engineering consultancy spend
+
+Label each company clearly. Be specific and evidence-based.`;
+
+  const content = document.getElementById('mainContent');
+  const existing = content.querySelector('.prompt-panel');
+  if (existing) { existing.remove(); return; }
+  const el = document.createElement('div');
+  el.className = 'prompt-panel';
+  el.style.marginBottom = '24px';
+  el.innerHTML = `<div class="prompt-panel-title">Bulk research prompt — all ${STATE.companies.length} companies</div>
+    <div class="prompt-text">${prompt.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
+    <button class="copy-btn" onclick="copyText(${JSON.stringify(prompt)})">Copy prompt</button>`;
+  content.insertBefore(el, content.firstChild);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ─── CRUD ─────────────────────────────────────────────────────────────────────
+function showAddBriefModal(name=null) {
+  editingCompany = name;
+  const brief = name ? STATE.briefs[name] : null;
+  document.getElementById('modalTitle').textContent = name ? `Edit brief — ${name}` : 'Add company brief';
+  document.getElementById('m-company').value = name || '';
+  document.getElementById('m-company').disabled = !!name;
+  document.getElementById('m-sector').value = brief?.sector || '';
+  document.getElementById('m-signals').value = brief?.signals?.map(s=>`[${s.type||'market'}] ${s.text}${s.date?' · '+s.date:''}`).join('\n') || '';
+  document.getElementById('m-financials').value = brief?.financials?.map(r=>`${r.key}: ${r.val}`).join('\n') || '';
+  document.getElementById('m-outreach').value = brief?.outreach || '';
+  document.getElementById('m-services').value = brief?.services?.join(', ') || '';
+  document.getElementById('addModal').style.display = 'flex';
+}
+
+function editBrief(name) { showAddBriefModal(name); }
+
+async function saveManualBrief() {
+  const company = editingCompany || document.getElementById('m-company').value.trim();
+  if (!company) { toast('Company name required'); return; }
+  if (!db.configured()) { toast('Configure Supabase credentials first'); return; }
+
+  const rawSignals = document.getElementById('m-signals').value.trim();
+  const signals = rawSignals ? rawSignals.split('\n').filter(Boolean).map(line => {
+    const m = line.match(/^\[(\w+)\]\s*/);
+    const type = m ? m[1].toLowerCase() : 'market';
+    const rest = line.replace(/^\[\w+\]\s*/,'');
+    const parts = rest.split(' · ');
+    return { type, text: parts[0].trim(), date: parts[1]?.trim() || '' };
+  }) : [];
+
+  const rawFin = document.getElementById('m-financials').value.trim();
+  const financials = rawFin ? rawFin.split('\n').filter(Boolean).map(line => {
+    const [k,...v] = line.split(':');
+    return { key: k.trim(), val: v.join(':').trim(), highlight: false };
+  }) : [];
+
+  const services = document.getElementById('m-services').value.split(',').map(s=>s.trim()).filter(Boolean);
+
+  const briefData = {
+    company_name: company,
+    sector: document.getElementById('m-sector').value.trim(),
+    signals, financials,
+    outreach: document.getElementById('m-outreach').value.trim(),
+    services,
+    updated_at: new Date().toISOString()
+  };
+
+  document.getElementById('saveBriefBtn').disabled = true;
+  document.getElementById('saveBriefBtn').textContent = 'Saving…';
+  setSyncStatus('syncing','Saving…');
+
+  try {
+    if (!STATE.companies.includes(company)) {
+      await db.addCompany(company);
+      STATE.companies.push(company);
+    }
+    await db.upsertBrief(briefData);
+    STATE.briefs[company] = { sector: briefData.sector, signals, financials, outreach: briefData.outreach, services, updatedAt: briefData.updated_at };
+    setSyncStatus('ok',`Synced · ${new Date().toLocaleTimeString()}`);
+    document.getElementById('addModal').style.display = 'none';
+    renderSidebar();
+    renderMain();
+    toast('Brief saved ✓');
+  } catch(e) {
+    setSyncStatus('error','Sync error');
+    toast('Could not save brief');
+    console.error(e);
+  } finally {
+    document.getElementById('saveBriefBtn').disabled = false;
+    document.getElementById('saveBriefBtn').textContent = 'Save brief';
+  }
+}
+
+async function importCSV() {
+  const raw = document.getElementById('csvInput').value;
+  const names = raw.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
+  if (!names.length) return;
+  if (!db.configured()) { toast('Configure Supabase credentials first'); return; }
+  setSyncStatus('syncing','Importing…');
+  let added = 0;
+  for (const name of names) {
+    if (STATE.companies.includes(name)) continue;
+    try { await db.addCompany(name); STATE.companies.push(name); added++; }
+    catch(e) { if (!e.message.includes('duplicate')) console.warn(e); }
+  }
+  setSyncStatus('ok',`Synced · ${new Date().toLocaleTimeString()}`);
+  document.getElementById('importModal').style.display = 'none';
+  document.getElementById('csvInput').value = '';
+  renderSidebar(); renderMain();
+  toast(`${added} companies imported`);
+}
+
+function showImportModal() { document.getElementById('importModal').style.display = 'flex'; }
+function copyText(text) { navigator.clipboard.writeText(text).then(()=>toast('Copied ✓')); }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadFromDB();
+</script>
+</body>
+</html>
