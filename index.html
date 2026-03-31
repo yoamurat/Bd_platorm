@@ -154,6 +154,19 @@
 
   .brief-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  .generating-box { background: var(--paper-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+  .generating-spinner { width: 16px; height: 16px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .generating-text { font-size: 13px; color: var(--ink-3); }
+
+  .usage-bar-wrap { margin-bottom: 28px; background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px; }
+  .usage-bar-label { font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+  .usage-bar-track { flex: 1; height: 6px; background: var(--paper-3); border-radius: 99px; overflow: hidden; }
+  .usage-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.4s ease; }
+  .usage-bar-fill.warn { background: var(--amber); }
+  .usage-bar-fill.full { background: #e05050; }
+  .usage-bar-count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+
   .skeleton { background: linear-gradient(90deg, var(--paper-2) 25%, var(--paper-3) 50%, var(--paper-2) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
   @keyframes shimmer { to { background-position: -200% 0; } }
 
@@ -307,6 +320,8 @@
 // ─── CONFIG ── Replace with your Supabase credentials ─────────────────────────
 const SUPABASE_URL = 'https://vbmkmcjdcycljwexmvxw.supabase.co';       // e.g. https://xyzabc.supabase.co
 const SUPABASE_KEY = 'sb_publishable_leUN2XqwvXfcCGyVgCpHdw_JvNnpHoE';  // your anon/public key
+const EDGE_FN_URL  = 'YOUR_SUPABASE_URL/functions/v1/generate-brief'; // auto-derived below
+const MONTHLY_CAP  = 100; // must match the cap in your Edge Function
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FIRM = {
@@ -358,7 +373,28 @@ const db = {
     return r.json();
   },
 
-  async upsertBrief(brief) {
+  async getUsage() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_usage?select=id&generated_at=gte.${monthStart}`, { headers: db.headers() });
+    if (!r.ok) throw new Error(await r.text());
+    const rows = await r.json();
+    return rows.length;
+  },
+
+  async callEdgeFunction(company, prompt) {
+    const fnUrl = SUPABASE_URL.replace('YOUR_SUPABASE_URL', '') !== SUPABASE_URL
+      ? `${SUPABASE_URL}/functions/v1/generate-brief`
+      : EDGE_FN_URL;
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/generate-brief`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ company, prompt })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data.brief;
+  },
     const r = await fetch(`${SUPABASE_URL}/rest/v1/bd_briefs`, {
       method: 'POST',
       headers: { ...db.headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
@@ -370,7 +406,7 @@ const db = {
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let STATE = { companies: [], briefs: {} };
+let STATE = { companies: [], briefs: {}, usage: 0 };
 let editingCompany = null;
 
 // ─── SYNC ─────────────────────────────────────────────────────────────────────
@@ -390,8 +426,9 @@ async function loadFromDB() {
   }
   setSyncStatus('syncing', 'Loading…');
   try {
-    const [companies, briefs] = await Promise.all([db.getCompanies(), db.getBriefs()]);
+    const [companies, briefs, usage] = await Promise.all([db.getCompanies(), db.getBriefs(), db.getUsage()]);
     STATE.companies = companies.map(c => c.name);
+    STATE.usage = usage;
     STATE.briefs = {};
     briefs.forEach(b => {
       STATE.briefs[b.company_name] = {
@@ -524,12 +561,19 @@ function renderMain(focusCompany=null) {
   }
 
   const targets = focusCompany ? [focusCompany] : STATE.companies;
+  const usagePct = Math.min(100, Math.round((STATE.usage / MONTHLY_CAP) * 100));
+  const usageClass = usagePct >= 100 ? 'full' : usagePct >= 75 ? 'warn' : '';
   content.innerHTML = configBanner + `
     <div class="stats-row">
       <div class="stat-card"><div class="stat-label">Companies tracked</div><div class="stat-value">${total}</div><div class="stat-sub">Active targets</div></div>
       <div class="stat-card"><div class="stat-label">Briefed</div><div class="stat-value">${withBrief}</div><div class="stat-sub">${total-withBrief} pending</div></div>
       <div class="stat-card"><div class="stat-label">Fresh briefs</div><div class="stat-value">${fresh}</div><div class="stat-sub">Updated &lt;30 days</div></div>
       <div class="stat-card"><div class="stat-label">Need update</div><div class="stat-value">${stale}</div><div class="stat-sub">Brief &gt;30 days old</div></div>
+    </div>
+    <div class="usage-bar-wrap">
+      <div class="usage-bar-label">Monthly generations</div>
+      <div class="usage-bar-track"><div class="usage-bar-fill ${usageClass}" style="width:${usagePct}%"></div></div>
+      <div class="usage-bar-count">${STATE.usage} / ${MONTHLY_CAP} — resets 1st of month</div>
     </div>
     <div class="briefs-grid">${targets.map(renderBriefCard).join('')}</div>`;
 }
@@ -562,17 +606,20 @@ function renderBriefCard(name) {
     <div class="outreach-box">
       <div class="outreach-label">Outreach angle — Engineering & Technical Advisory</div>
       <div class="outreach-text">${brief.outreach||'No outreach angle defined.'}</div>
+      ${brief.decisionMakers ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(247,246,242,0.1);font-size:11px;color:rgba(247,246,242,0.5);">Key contacts: <span style="color:rgba(247,246,242,0.75);font-weight:500;">${brief.decisionMakers}</span></div>` : ''}
       ${(brief.services||[]).length?`<div class="services-grid">${brief.services.map(s=>`<span class="service-chip">${s}</span>`).join('')}</div>`:''}
     </div>
     <div class="brief-actions">
       <button class="btn btn-outline" onclick="editBrief(${JSON.stringify(name)})">Edit</button>
       <button class="btn btn-outline" onclick="showResearchPrompt(${JSON.stringify(name)}, '${safeId}')">Refresh prompt</button>
-      <button class="btn btn-primary" onclick="copyText(${JSON.stringify(brief.outreach||'')})">Copy outreach</button>
+      <button class="btn btn-primary" onclick="generateBrief(${JSON.stringify(name)}, '${safeId}')" ${STATE.usage >= MONTHLY_CAP ? 'disabled title="Monthly cap reached"' : ''}>Generate with AI</button>
+      <button class="btn btn-outline" onclick="copyText(${JSON.stringify(brief.outreach||'')})">Copy outreach</button>
     </div>` :
-    `<div style="padding:16px 0;color:var(--ink-4);font-size:13px;">No brief yet. Use the prompt below to research this company, then save results.</div>
+    `<div style="padding:16px 0;color:var(--ink-4);font-size:13px;">No brief yet. Generate one with AI or add details manually.</div>
     <div class="brief-actions">
-      <button class="btn btn-primary" onclick="showAddBriefModal(${JSON.stringify(name)})">Add brief manually</button>
-      <button class="btn btn-outline" onclick="showResearchPrompt(${JSON.stringify(name)}, '${safeId}')">Generate research prompt</button>
+      <button class="btn btn-primary" onclick="generateBrief(${JSON.stringify(name)}, '${safeId}')" ${STATE.usage >= MONTHLY_CAP ? 'disabled title="Monthly cap reached"' : ''}>Generate with AI</button>
+      <button class="btn btn-outline" onclick="showAddBriefModal(${JSON.stringify(name)})">Add manually</button>
+      <button class="btn btn-outline" onclick="showResearchPrompt(${JSON.stringify(name)}, '${safeId}')">Copy prompt</button>
     </div>`;
 
   return `
@@ -599,6 +646,122 @@ function renderBriefCard(name) {
 }
 
 function toggleCard(head) { head.parentElement.classList.toggle('open'); }
+
+// ─── AI GENERATION ────────────────────────────────────────────────────────────
+async function generateBrief(name, safeId) {
+  if (STATE.usage >= MONTHLY_CAP) { toast(`Monthly cap of ${MONTHLY_CAP} reached. Resets on the 1st.`); return; }
+  if (!db.configured()) { toast('Configure Supabase credentials first'); return; }
+
+  // Open card and show spinner
+  const card = document.getElementById('card-' + safeId);
+  if (card && !card.classList.contains('open')) card.classList.add('open');
+  const bodyEl = card?.querySelector('.brief-body');
+  if (bodyEl) {
+    bodyEl.innerHTML = `<div class="generating-box">
+      <div class="generating-spinner"></div>
+      <div class="generating-text">Researching <strong>${name}</strong> — this takes 10–20 seconds…</div>
+    </div>`;
+  }
+
+  // Build structured prompt that returns JSON
+  const prompt = buildPromptJSON(name);
+
+  try {
+    const raw = await db.callEdgeFunction(name, prompt);
+    const brief = parseBriefResponse(raw, name);
+
+    // Add company if needed
+    if (!STATE.companies.includes(name)) {
+      await db.addCompany(name);
+      STATE.companies.push(name);
+    }
+
+    // Save to Supabase
+    await db.upsertBrief({
+      company_name: name,
+      sector: brief.sector,
+      signals: brief.signals,
+      financials: brief.financials,
+      outreach: brief.outreach,
+      services: brief.services,
+      updated_at: new Date().toISOString()
+    });
+
+    STATE.briefs[name] = { ...brief, updatedAt: new Date().toISOString() };
+    STATE.usage += 1;
+
+    setSyncStatus('ok', `Synced · ${new Date().toLocaleTimeString()}`);
+    renderSidebar();
+    renderMain();
+
+    // Re-open the card that was just generated
+    const newCard = document.getElementById('card-' + safeId);
+    if (newCard) newCard.classList.add('open');
+    toast(`Brief generated for ${name} ✓`);
+
+  } catch(e) {
+    toast(`Error: ${e.message}`);
+    // Restore card to previous state
+    renderMain();
+    const newCard = document.getElementById('card-' + safeId);
+    if (newCard) newCard.classList.add('open');
+    console.error(e);
+  }
+}
+
+function buildPromptJSON(company) {
+  return `You are a BD analyst for an engineering and technical consultancy. Research "${company}" and return ONLY a valid JSON object — no markdown, no preamble, no explanation.
+
+OUR SERVICES: ${FIRM.services.join(', ')}
+
+Return this exact JSON structure:
+{
+  "sector": "one of: Oil & gas upstream | Gas infrastructure & midstream | Renewables & hydrogen | Power & utilities | Other",
+  "signals": [
+    { "type": "project|tender|regulatory|leadership|market", "text": "specific description under 30 words", "date": "Mon YYYY" },
+    { "type": "...", "text": "...", "date": "..." }
+  ],
+  "financials": [
+    { "key": "label", "val": "value", "highlight": false },
+    { "key": "Annual capex", "val": "$Xbn", "highlight": true }
+  ],
+  "outreach": "3–4 sentences: name the exact project creating an opening, which of our services fits best and why, why contact them NOW",
+  "services": ["Service 1", "Service 2", "Service 3"],
+  "decisionMakers": "VP Engineering / Technical Director / Head of Projects"
+}
+
+Rules:
+- signals: 2–3 items focused on active capex projects, FEED/EPC awards, decarbonisation programmes, hydrogen/CCUS, asset integrity, regulatory drivers
+- financials: 5 rows covering ownership, revenue/production, capex, listing status, key financial signal
+- services: pick 2–4 from our list that are the sharpest fit
+- Be specific and evidence-based. No filler.`;
+}
+
+function parseBriefResponse(raw, company) {
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON found');
+    const data = JSON.parse(match[0]);
+    return {
+      sector: data.sector || '',
+      signals: (data.signals || []).map(s => ({ type: s.type || 'market', text: s.text || '', date: s.date || '' })),
+      financials: (data.financials || []).map(f => ({ key: f.key || '', val: f.val || '', highlight: !!f.highlight })),
+      outreach: data.outreach || '',
+      services: data.services || [],
+      decisionMakers: data.decisionMakers || ''
+    };
+  } catch(e) {
+    // Fallback: store raw text as outreach if JSON parse fails
+    return {
+      sector: '',
+      signals: [{ type: 'market', text: 'Brief generated — see outreach section for full details', date: new Date().toLocaleDateString('en-GB', {month:'short', year:'numeric'}) }],
+      financials: [],
+      outreach: raw.slice(0, 1000),
+      services: [],
+      decisionMakers: ''
+    };
+  }
+}
 
 // ─── PROMPT ───────────────────────────────────────────────────────────────────
 function buildPrompt(company) {
